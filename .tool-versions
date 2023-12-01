@@ -1,0 +1,13 @@
+# Note that erlang is built from source by asdf, so you need a build chain
+# and erlang's deps
+#
+# # Install common ASDF plugin deps
+#   brew install coreutils automake autoconf openssl libyaml readline libxslt libtool
+#
+# # Install Erlang plugin deps
+#   brew install unixodbc wxmac
+#
+
+elixir 1.15.7-otp-26
+elixir-ls 0.17.8
+erlang 26.1.2
