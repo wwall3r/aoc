@@ -36,13 +36,9 @@ defmodule ElfSum do
 
   defp convert_words_to_digits(str) do
     @digits
-    |> Enum.reduce(str, fn pattern, str ->
-      String.replace(str, pattern, fn _ ->
-        @digits
-        |> Enum.find_index(fn n -> n == pattern end)
-        |> Kernel.+(1)
-        |> Integer.to_string()
-      end)
+    |> Enum.with_index()
+    |> Enum.reduce(str, fn {pattern, index}, str ->
+      String.replace(str, pattern, fn _ -> Integer.to_string(index + 1) end)
     end)
   end
 end
