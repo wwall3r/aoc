@@ -1,8 +1,8 @@
-defmodule Day3Part1 do
+defmodule Day3Part2 do
   def main do
     {last, _, sum} =
       File.stream!("input")
-      |> Enum.reduce({{[], []}, {[], []}, 0}, &reduceState/2)
+      |> Enum.reduce({{[], []}, {[], []}, 0}, &reduce_state/2)
 
     last
     |> get_gear_ratios()
@@ -11,7 +11,7 @@ defmodule Day3Part1 do
     |> IO.puts()
   end
 
-  defp reduceState(str, {last, current, sum}) do
+  defp reduce_state(str, {last, current, sum}) do
     {
       current,
       str
@@ -93,4 +93,4 @@ defmodule Day3Part1 do
   end
 end
 
-Day3Part1.main()
+Day3Part2.main()
