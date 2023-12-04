@@ -2,13 +2,13 @@ defmodule Day3Part1 do
   def main do
     {_, _, sum} =
       File.stream!("input")
-      |> Enum.reduce({{[], []}, {[], []}, 0}, &reduceState/2)
+      |> Enum.reduce({{[], []}, {[], []}, 0}, &reduce_state/2)
 
     sum
     |> IO.puts()
   end
 
-  defp reduceState(str, {_, current, sum}) do
+  defp reduce_state(str, {_, current, sum}) do
     {
       current,
       str
