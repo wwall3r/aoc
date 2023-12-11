@@ -98,17 +98,9 @@ defmodule Day8Part2 do
     Enum.all?(ids, fn i -> String.ends_with?(i, "Z") end)
   end
 
-  # greatest common divisor
-  defp gcd(a, b) when is_number(a) and is_number(b) do
-    cond do
-      b > 0 -> gcd(b, rem(a, b))
-      true -> a
-    end
-  end
-
   # least common multiple
   defp lcm(a, b) when is_number(a) and is_number(b) do
-    round(a * (b / gcd(a, b)))
+    a * Integer.floor_div(b, Integer.gcd(a, b))
   end
 
   defp lcm([head | tail] = list) do
