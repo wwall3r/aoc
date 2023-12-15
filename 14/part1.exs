@@ -101,11 +101,19 @@ defmodule Day13Part1 do
     key1 = to_key(pos1)
     key2 = to_key(pos2)
 
-    tmp = Map.get(map, key1, ".")
+    v1 = Map.get(map, key1)
+    v2 = Map.get(map, key2)
 
-    map
-    |> Map.put(key1, Map.get(map, key2, "."))
-    |> Map.put(key2, tmp)
+    map =
+      cond do
+        v2 != nil -> Map.put(map, key1, v2)
+        true -> Map.delete(map, key1)
+      end
+
+    cond do
+      v1 != nil -> Map.put(map, key2, v1)
+      true -> Map.delete(map, key2)
+    end
   end
 
   defp to_key({x, y}) do
