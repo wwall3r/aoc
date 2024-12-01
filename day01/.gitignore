@@ -1,4 +1,6 @@
 *.beam
 *.ez
+*input*
+*sample*
 /build
 erl_crash.dump
