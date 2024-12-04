@@ -1,10 +1,10 @@
 import argv
 import gleam/int
 import gleam/io
-import gleam/iterator
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam/yielder
 import glearray.{type Array}
 import simplifile
 
@@ -39,12 +39,10 @@ fn find_starts(grid: Grid) -> List(Coord) {
   let max_x = get_width(grid)
   let max_y = get_height(grid)
 
-  0
-  |> iterator.range(max_y - 1)
-  |> iterator.fold([], fn(starts, y) {
-    0
-    |> iterator.range(max_x - 1)
-    |> iterator.fold(starts, fn(starts, x) {
+  yielder.range(0, max_y - 1)
+  |> yielder.fold([], fn(starts, y) {
+    yielder.range(0, max_x - 1)
+    |> yielder.fold(starts, fn(starts, x) {
       let coord = #(x, y)
       case get_value(grid, coord) {
         "X" -> [coord, ..starts]
