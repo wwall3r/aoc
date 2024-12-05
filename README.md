@@ -1,6 +1,6 @@
 # AoC 2024
 
-To run the solutions:
+To run the solutions, `cd` into the day's directory and:
 - `gleam run -m part1 <input_file>`
 - `gleam run -m part2 <input_file>`
 
