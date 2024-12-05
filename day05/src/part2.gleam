@@ -1,52 +1,34 @@
 import argv
-import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/list.{Continue, Stop}
 import gleam/order.{Eq, Gt, Lt}
 import gleam/result
-import gleam/set.{type Set}
+import gleam/set
 import gleam/string
 import simplifile
-
-type RuleSet =
-  Dict(String, Set(String))
 
 pub fn main() {
   let assert [filename] = argv.load().arguments
   let assert Ok(content) = simplifile.read(from: filename)
-
   let assert [rule_lines, page_lines] = string.split(content, "\n\n")
 
-  let ruleset: RuleSet =
+  let rules =
     rule_lines
     |> string.split("\n")
-    |> list.map(string.trim)
-    |> list.fold(dict.new(), fn(ruleset, line) {
-      let assert [first, second] = string.split(line, "|")
-
-      let new_set = case dict.get(ruleset, first) {
-        Ok(inner_set) -> set.insert(inner_set, second)
-        Error(Nil) -> set.from_list([second])
-      }
-
-      dict.insert(ruleset, first, new_set)
-    })
+    |> set.from_list()
 
   page_lines
   |> string.split("\n")
   |> list.map(string.trim)
   |> list.filter(fn(str) { !string.is_empty(str) })
   |> list.map(fn(line) {
-    let pages =
-      line
-      |> string.split(",")
+    let pages = string.split(line, ",")
 
     let sorted_pages =
-      pages
-      |> list.sort(fn(a, b) {
-        let lt = is_in_ruleset(ruleset, a, b)
-        let gt = is_in_ruleset(ruleset, b, a)
+      list.sort(pages, fn(a, b) {
+        let lt = set.contains(rules, a <> "|" <> b)
+        let gt = set.contains(rules, b <> "|" <> a)
 
         case lt, gt {
           True, False -> Lt
@@ -76,13 +58,6 @@ pub fn main() {
   |> io.debug()
 }
 
-fn is_in_ruleset(ruleset: RuleSet, a: String, b: String) -> Bool {
-  ruleset
-  |> dict.get(a)
-  |> result.unwrap(set.new())
-  |> set.contains(b)
-}
-
 fn parse_int(str: String) {
   let assert Ok(num) = int.parse(str)
   num
@@ -91,8 +66,7 @@ fn parse_int(str: String) {
 // wtf? no list.get? y'all are gonna make me use glearray for everything in this
 fn list_get(items: List(a), index: Int) -> Result(a, Nil) {
   let #(_, val) =
-    items
-    |> list.fold_until(#(0, Error(Nil)), fn(state, item) {
+    list.fold_until(items, #(0, Error(Nil)), fn(state, item) {
       let #(i, _) = state
 
       case i == index {
