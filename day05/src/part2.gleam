@@ -12,41 +12,27 @@ import simplifile
 type RuleSet =
   Dict(String, Set(String))
 
-type RuleSetState =
-  #(RuleSet, RuleSet)
-
 pub fn main() {
   let assert [filename] = argv.load().arguments
   let assert Ok(content) = simplifile.read(from: filename)
 
   let assert [rule_lines, page_lines] = string.split(content, "\n\n")
 
-  let initial_state: RuleSetState = #(dict.new(), dict.new())
+  let initial_ruleset: RuleSet = dict.new()
 
-  let #(less_thans, greater_thans) =
+  let ruleset =
     rule_lines
     |> string.split("\n")
     |> list.map(string.trim)
-    |> list.fold(initial_state, fn(state, line) {
+    |> list.fold(initial_ruleset, fn(ruleset, line) {
       let assert [first, second] = string.split(line, "|")
 
-      let #(lesser_thans, greater_thans) = state
-
-      let new_set = case dict.get(lesser_thans, first) {
-        Ok(lesser_set) -> set.insert(lesser_set, second)
+      let new_set = case dict.get(ruleset, first) {
+        Ok(inner_set) -> set.insert(inner_set, second)
         Error(Nil) -> set.from_list([second])
       }
 
-      let new_lesser_thans = dict.insert(lesser_thans, first, new_set)
-
-      let new_set = case dict.get(greater_thans, second) {
-        Ok(greater_set) -> set.insert(greater_set, first)
-        Error(Nil) -> set.from_list([first])
-      }
-
-      let new_greater_thans = dict.insert(greater_thans, second, new_set)
-
-      #(new_lesser_thans, new_greater_thans)
+      dict.insert(ruleset, first, new_set)
     })
 
   page_lines
@@ -61,8 +47,8 @@ pub fn main() {
     let sorted_pages =
       pages
       |> list.sort(fn(a, b) {
-        let lt = is_in_ruleset(less_thans, a, b)
-        let gt = is_in_ruleset(greater_thans, a, b)
+        let lt = is_in_ruleset(ruleset, a, b)
+        let gt = is_in_ruleset(ruleset, b, a)
 
         case lt, gt {
           True, False -> Lt
