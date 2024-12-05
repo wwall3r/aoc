@@ -18,13 +18,11 @@ pub fn main() {
 
   let assert [rule_lines, page_lines] = string.split(content, "\n\n")
 
-  let initial_ruleset: RuleSet = dict.new()
-
-  let ruleset =
+  let ruleset: RuleSet =
     rule_lines
     |> string.split("\n")
     |> list.map(string.trim)
-    |> list.fold(initial_ruleset, fn(ruleset, line) {
+    |> list.fold(dict.new(), fn(ruleset, line) {
       let assert [first, second] = string.split(line, "|")
 
       let new_set = case dict.get(ruleset, first) {
