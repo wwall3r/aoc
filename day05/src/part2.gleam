@@ -20,7 +20,6 @@ pub fn main() {
 
   page_lines
   |> string.split("\n")
-  |> list.map(string.trim)
   |> list.filter(fn(str) { !string.is_empty(str) })
   |> list.map(fn(line) {
     let pages = string.split(line, ",")
