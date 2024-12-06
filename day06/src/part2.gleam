@@ -1,8 +1,6 @@
 import argv
-import gleam/int
 import gleam/io
 import gleam/list
-import gleam/option.{type Option, None, Some}
 import gleam/pair
 import gleam/result
 import gleam/set.{type Set}
@@ -40,6 +38,8 @@ pub fn main() {
   let guard = get_guard(grid)
   let path = walk(grid, guard, [])
 
+  // useful when refactoring so we know if we broke the first part, since we use 
+  // it in the second
   io.debug("part1")
 
   path
