@@ -2,6 +2,8 @@ import argv
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/pair
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
@@ -18,9 +20,8 @@ type Coord =
 type Direction =
   #(Int, Int)
 
-type State {
-  State(coord: Coord, dir: Direction, obstacles: List(#(Coord, Direction)))
-}
+type Guard =
+  #(Coord, Direction)
 
 pub fn main() {
   let assert [filename] = argv.load().arguments
@@ -36,74 +37,96 @@ pub fn main() {
     })
     |> glearray.from_list()
 
-  let initial_state = get_initial_state(grid)
-  let final_state = walk(grid, initial_state)
+  let guard = get_guard(grid)
+  let path = walk(grid, guard, [])
 
-  final_state.obstacles
+  io.debug("part1")
+
+  path
+  |> list.map(pair.first)
+  |> set.from_list()
+  |> set.size()
+  |> io.debug()
+
+  io.debug("part2")
+
+  path
   |> list.reverse()
-  |> detect_cycles()
+  |> list.rest()
+  |> result.unwrap([])
+  |> list.fold(set.new(), fn(loops, curr) {
+    // place current position as extra obstacle
+    let temp_grid = set_value(grid, curr.0, "#")
+
+    case detect_loop(temp_grid, guard, set.new()) {
+      True -> set.insert(loops, curr.0)
+      False -> loops
+    }
+  })
+  |> set.size()
   |> io.debug()
 }
 
-fn get_initial_state(grid: Grid) -> State {
+fn get_guard(grid: Grid) -> Guard {
   let max_x = get_width(grid)
   let max_y = get_height(grid)
 
-  let initial_state = State(#(-1, -1), #(-1, -1), [])
+  let guard = #(#(-1, -1), #(-1, -1))
 
   yielder.range(0, max_y - 1)
-  |> yielder.fold(initial_state, fn(state, y) {
+  |> yielder.fold(guard, fn(guard, y) {
     yielder.range(0, max_x - 1)
-    |> yielder.fold(state, fn(state, x) {
+    |> yielder.fold(guard, fn(guard, x) {
       let coord = #(x, y)
       case get_value(grid, coord) {
-        d if d == "^" || d == "v" || d == "<" || d == ">" ->
-          State(..state, coord:, dir: to_direction(d))
-        _ -> state
+        d if d == "^" || d == "v" || d == "<" || d == ">" -> #(
+          coord,
+          to_direction(d),
+        )
+        _ -> guard
       }
     })
   })
 }
 
-fn walk(grid, state: State) -> State {
-  let State(coord, dir, obstacles) = state
+fn walk(grid: Grid, guard: Guard, path: List(Guard)) -> List(Guard) {
+  let path = [guard, ..path]
 
-  let next_coord = get_next_coord(coord, dir)
-  let value = get_value(grid, next_coord)
-
-  case value {
-    "" -> State(..state, obstacles: [#(coord, dir), ..obstacles])
-    "#" -> walk(grid, State(coord, turn(dir), [#(coord, dir), ..obstacles]))
-    _ -> walk(grid, State(..state, coord: next_coord))
+  case move_next(grid, guard) {
+    Ok(guard) -> walk(grid, guard, path)
+    Error(Nil) -> path
   }
 }
 
-fn detect_cycles(obstacles: List(#(Coord, Direction))) -> Int {
-  let assert [first, ..] = obstacles
+fn detect_loop(grid: Grid, guard: Guard, seen: Set(Guard)) -> Bool {
+  case set.contains(seen, guard) {
+    True -> True
+    False -> {
+      let seen = set.insert(seen, guard)
 
-  obstacles
-  |> list.append([first])
-  |> list.window(4)
-  |> list.fold(0, fn(sum, window) {
-    let assert [#(#(x1, y1), _), _, _, #(#(x4, y4), dir4)] = window
-
-    let has_loop =
-      { dir4 == up && y4 < y1 }
-      || { dir4 == down && y4 > y1 }
-      || { dir4 == left && x4 < x1 }
-      || { dir4 == right && x4 > x1 }
-
-    sum
-    + case has_loop {
-      True -> 1
-      False -> 0
+      case move_next(grid, guard) {
+        Ok(guard) -> detect_loop(grid, guard, seen)
+        Error(Nil) -> False
+      }
     }
-  })
+  }
 }
 
-fn get_next_coord(coord: Coord, dir: Direction) -> Coord {
-  let #(x, y) = coord
-  let #(dx, dy) = dir
+fn move_next(grid: Grid, guard: Guard) -> Result(Guard, Nil) {
+  let #(coord, dir) = guard
+
+  let next_coord = get_next_coord(guard)
+  let value = get_value(grid, next_coord)
+
+  case value {
+    "" -> Error(Nil)
+    "#" -> Ok(#(coord, turn(dir)))
+    _ -> Ok(#(next_coord, dir))
+  }
+}
+
+fn get_next_coord(guard: Guard) -> Coord {
+  let #(#(x, y), #(dx, dy)) = guard
   #(x + dx, y + dy)
 }
 
@@ -118,6 +141,28 @@ fn get_value(grid: Grid, coord: Coord) -> String {
       |> glearray.get(x)
       |> result.unwrap("")
     _ -> ""
+  }
+}
+
+fn set_value(grid: Grid, coord: Coord, value: String) -> Grid {
+  let #(x, y) = coord
+
+  let row = glearray.get(grid, y)
+
+  let new_row = case row {
+    Ok(array) ->
+      case glearray.copy_set(array, x, value) {
+        Ok(array) -> array
+        _ -> panic
+      }
+    _ -> panic
+  }
+
+  let new_grid = glearray.copy_set(grid, y, new_row)
+
+  case new_grid {
+    Ok(value) -> value
+    _ -> panic
   }
 }
 
