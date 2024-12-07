@@ -27,6 +27,7 @@ pub fn main() {
       |> list.map(fn(result) {
         operators
         |> list.map(fn(op) { op(result, operand) })
+        |> list.filter(fn(n) { n <= expected })
       })
       |> list.flatten()
     })
