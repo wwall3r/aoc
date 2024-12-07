@@ -10,10 +10,23 @@ import gleam/set.{type Set}
 import gleam/string
 import gleam/yielder
 import glearray.{type Array}
+import parallel_map.{MatchSchedulersOnline}
 import simplifile
 
 type Grid =
   Array(Array(String))
+
+// type Node {
+//   Node(
+//     coord: Coord,
+//     up: Node,
+//     right: Node,
+//     down: Node,
+//     left: Node,
+//   )
+//   Obstacle
+//   Exit
+// }
 
 type Coord =
   #(Int, Int)
@@ -28,7 +41,7 @@ pub fn main() {
   let assert [filename] = argv.load().arguments
   let assert Ok(content) = simplifile.read(from: filename)
 
-  let grid =
+  let grid: Grid =
     content
     |> string.split("\n")
     |> list.map(fn(line) {
@@ -67,15 +80,19 @@ pub fn main() {
   |> list.reverse()
   |> list.rest()
   |> result.unwrap([])
-  |> list.fold(set.new(), fn(loops, curr) {
-    // place current position as extra obstacle
-    let temp_grid = set_value(grid, curr.0, "#")
-
-    case detect_loop(temp_grid, guard, set.new()) {
-      True -> set.insert(loops, curr.0)
-      False -> loops
-    }
-  })
+  |> parallel_map.list_pmap(
+    fn(curr) {
+      // place current position as extra obstacle
+      let temp_grid = set_value(grid, curr.0, "#")
+      #(curr.0, detect_loop(temp_grid, guard, set.new()))
+    },
+    MatchSchedulersOnline,
+    100,
+  )
+  |> list.map(fn(r) { result.unwrap(r, #(#(-1, -1), False)) })
+  |> list.filter(pair.second)
+  |> list.map(pair.first)
+  |> set.from_list()
   |> set.size()
   |> io.debug()
 
