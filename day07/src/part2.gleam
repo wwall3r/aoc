@@ -1,7 +1,7 @@
 import argv
 import gleam/int
 import gleam/io
-import gleam/list
+import gleam/list.{Continue, Stop}
 import gleam/string
 import simplifile
 
@@ -31,10 +31,10 @@ pub fn main() {
       })
       |> list.flatten()
     })
-    |> list.fold(0, fn(val, result) {
+    |> list.fold_until(0, fn(_, result) {
       case expected == result {
-        True -> expected
-        False -> val
+        True -> Stop(expected)
+        False -> Continue(0)
       }
     })
   })
