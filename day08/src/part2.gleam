@@ -99,8 +99,5 @@ fn get_all_in_dir(grid: Grid, start: Coord, dir: Coord) -> List(Coord) {
 
 fn is_in_grid(grid: Grid, coord: Coord) -> Bool {
   let #(x, y) = coord
-  case x, y {
-    x, y if x >= 0 && x < grid.width && y >= 0 && y < grid.height -> True
-    _, _ -> False
-  }
+  x >= 0 && x < grid.width && y >= 0 && y < grid.height
 }
