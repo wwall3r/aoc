@@ -85,11 +85,12 @@ fn get_antinodes(grid: Grid, coords: List(Coord)) -> List(Coord) {
 fn get_all_in_dir(grid: Grid, start: Coord, dir: Coord) -> List(Coord) {
   let #(dx, dy) = dir
   yielder.unfold(start, fn(coord) {
-    let #(x, y) = coord
-    let next_coord = #(x + dx, y + dy)
-
     case is_in_grid(grid, coord) {
-      True -> Next(coord, next_coord)
+      True -> {
+        let #(x, y) = coord
+        let next_coord = #(x + dx, y + dy)
+        Next(coord, next_coord)
+      }
       False -> Done
     }
   })
