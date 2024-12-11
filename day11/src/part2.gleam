@@ -4,13 +4,12 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/pair
-import gleam/result
 import gleam/string
 import simplifile
 
-// map[stone][depth] = length produced
+// keyed by #(stone, depth) to result
 type Seen =
-  Dict(Int, Dict(Int, Int))
+  Dict(#(Int, Int), Int)
 
 // for better part1 set to 25
 const target = 75
@@ -19,26 +18,18 @@ pub fn main() {
   let assert [filename] = argv.load().arguments
   let assert Ok(content) = simplifile.read(from: filename)
 
-  let stones =
-    content
-    |> string.trim()
-    |> string.split(" ")
-    |> list.map(parse_int)
-    |> io.debug()
-
-  let seen: Seen = dict.new()
-
-  blink_stones(stones, seen, target)
-  |> pair.second()
+  content
+  |> string.trim()
+  |> string.split(" ")
+  |> list.map(parse_int)
   |> io.debug()
-}
-
-fn blink_stones(stones: List(Int), seen: Seen, depth: Int) -> #(Seen, Int) {
-  list.fold(stones, #(seen, 0), fn(state, next) {
+  |> list.fold(#(dict.new(), 0), fn(state, next) {
     let #(seen, sum) = state
-    let #(seen, n) = blink(next, seen, depth)
+    let #(seen, n) = blink(next, seen, target)
     #(seen, sum + n)
   })
+  |> pair.second()
+  |> io.debug()
 }
 
 // changes: 
@@ -47,16 +38,9 @@ fn blink_stones(stones: List(Int), seen: Seen, depth: Int) -> #(Seen, Int) {
 //   was superfluous
 
 fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
-  let known = case dict.get(seen, stone) {
-    Ok(by_depth) ->
-      case dict.get(by_depth, depth) {
-        Ok(num) -> Ok(num)
-        _ -> Error(Nil)
-      }
-    _ -> Error(Nil)
-  }
+  let stone_and_depth = #(stone, depth)
 
-  case known {
+  case dict.get(seen, stone_and_depth) {
     Ok(num) -> #(seen, num)
     Error(Nil) -> {
       case depth {
@@ -64,11 +48,12 @@ fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
         _ -> {
           let str = int.to_string(stone)
           let len = string.length(str)
-          let half = len / 2
 
           let #(seen, n) = case stone {
             0 -> blink(1, seen, depth - 1)
             _ if len % 2 == 0 -> {
+              let half = len / 2
+
               let #(seen, a) =
                 blink(
                   str |> string.slice(0, half) |> parse_int(),
@@ -88,12 +73,7 @@ fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
             n -> blink(n * 2024, seen, depth - 1)
           }
 
-          let existing =
-            seen
-            |> dict.get(stone)
-            |> result.unwrap(dict.new())
-
-          let seen = dict.insert(seen, stone, dict.insert(existing, depth, n))
+          let seen = dict.insert(seen, stone_and_depth, n)
 
           #(seen, n)
         }
