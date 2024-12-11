@@ -97,16 +97,15 @@ fn find_from_head(grid: Grid, state: FoldState, coord: Coord) -> FoldState {
               #(x + dx, y + dy)
             })
             |> list.filter(fn(coord) {
-              let #(x, y) = coord
-              case dict.get(grid.topo, coord) {
-                Ok(h) -> {
+              case coord, dict.get(grid.topo, coord) {
+                #(x, y), Ok(h) -> {
                   h - curr_height == 1
                   && x >= 0
                   && x < grid.width
                   && y >= 0
                   && y < grid.height
                 }
-                Error(Nil) -> False
+                _, Error(Nil) -> False
               }
             })
             |> list.fold(#(seen, set.new()), fn(state, next) {
