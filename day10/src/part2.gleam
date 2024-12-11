@@ -54,28 +54,28 @@ pub fn main() {
 }
 
 type FoldState =
-  #(Grid, Dict(Coord, Int), Int)
+  #(Dict(Coord, Int), Int)
 
 fn find_trails(grid: Grid) -> Int {
-  let initial: FoldState = #(grid, dict.new(), 0)
+  let initial: FoldState = #(dict.new(), 0)
 
   grid.starts
   |> list.reverse()
   |> list.fold(#(initial, 0), fn(state, start) {
     let #(inner_state, total) = state
-    let #(grid, seen, sum) = find_from_head(inner_state, start)
+    let #(seen, sum) = find_from_head(grid, inner_state, start)
     let total = total + sum
-    #(#(grid, seen, 0), total)
+    #(#(seen, 0), total)
   })
   |> pair.second()
 }
 
 const dirs = [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
 
-fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
-  let #(grid, seen, _) = state
+fn find_from_head(grid: Grid, state: FoldState, coord: Coord) -> FoldState {
+  let #(seen, _) = state
   case dict.get(seen, coord) {
-    Ok(count) -> #(grid, seen, count)
+    Ok(count) -> #(seen, count)
 
     Error(Nil) -> {
       let curr_height =
@@ -84,9 +84,9 @@ fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
         |> result.unwrap(-1)
 
       case curr_height {
-        9 -> #(grid, seen, 1)
+        9 -> #(seen, 1)
         curr_height -> {
-          let #(grid, seen, sum) =
+          let #(seen, sum) =
             dirs
             |> list.map(fn(dir) {
               let #(dx, dy) = dir
@@ -106,14 +106,14 @@ fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
                 Error(Nil) -> False
               }
             })
-            |> list.fold(#(grid, seen, 0), fn(state, next) {
-              let #(grid, seen, sum) = find_from_head(state, next)
-              let #(_, _, total) = state
-              #(grid, seen, total + sum)
+            |> list.fold(#(seen, 0), fn(state, next) {
+              let #(_, total) = state
+              let #(seen, sum) = find_from_head(grid, state, next)
+              #(seen, total + sum)
             })
 
           let seen = dict.insert(seen, coord, sum)
-          #(grid, seen, sum)
+          #(seen, sum)
         }
       }
     }

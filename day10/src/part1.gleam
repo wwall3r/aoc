@@ -55,27 +55,27 @@ pub fn main() {
 }
 
 type FoldState =
-  #(Grid, Dict(Coord, Set(Coord)), Set(Coord))
+  #(Dict(Coord, Set(Coord)), Set(Coord))
 
 fn find_trails(grid: Grid) -> Int {
-  let initial = #(grid, dict.new(), set.new())
+  let initial = #(dict.new(), set.new())
 
   grid.starts
   |> list.reverse()
   |> list.fold(#(initial, 0), fn(state, start) {
     let #(next_state, sum) = state
-    let #(grid, seen, peak_set) = find_from_head(next_state, start)
-    #(#(grid, seen, set.new()), sum + set.size(peak_set))
+    let #(seen, peak_set) = find_from_head(grid, next_state, start)
+    #(#(seen, set.new()), sum + set.size(peak_set))
   })
   |> pair.second()
 }
 
 const dirs = [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
 
-fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
-  let #(grid, seen, _) = state
+fn find_from_head(grid: Grid, state: FoldState, coord: Coord) -> FoldState {
+  let #(seen, _) = state
   case dict.get(seen, coord) {
-    Ok(peak_set) -> #(grid, seen, peak_set)
+    Ok(peak_set) -> #(seen, peak_set)
 
     Error(Nil) -> {
       let curr_height =
@@ -86,10 +86,10 @@ fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
       case curr_height {
         9 -> {
           let peak_set = set.from_list([coord])
-          #(grid, dict.insert(seen, coord, peak_set), peak_set)
+          #(dict.insert(seen, coord, peak_set), peak_set)
         }
         curr_height -> {
-          let #(grid, seen, new_set) =
+          let #(seen, new_set) =
             dirs
             |> list.map(fn(dir) {
               let #(dx, dy) = dir
@@ -109,17 +109,17 @@ fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
                 Error(Nil) -> False
               }
             })
-            |> list.fold(#(grid, seen, set.new()), fn(state, next) {
-              let #(grid, seen, new_set) = state
-              let #(grid, seen, next_set) =
-                find_from_head(#(grid, seen, set.new()), next)
+            |> list.fold(#(seen, set.new()), fn(state, next) {
+              let #(seen, new_set) = state
+              let #(seen, next_set) =
+                find_from_head(grid, #(seen, set.new()), next)
               let new_set = set.union(next_set, new_set)
               let seen = dict.insert(seen, coord, new_set)
-              #(grid, seen, new_set)
+              #(seen, new_set)
             })
 
           let seen = dict.insert(seen, coord, new_set)
-          #(grid, seen, new_set)
+          #(seen, new_set)
         }
       }
     }
