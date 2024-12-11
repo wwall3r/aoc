@@ -3,8 +3,8 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/pair
 import gleam/result
-import gleam/set.{type Set}
 import gleam/string
 import simplifile
 
@@ -23,8 +23,8 @@ pub fn main() {
 
   let grid =
     content
+    |> string.trim()
     |> string.split("\n")
-    |> list.filter(fn(str) { !string.is_empty(str) })
     |> list.fold(initial, fn(grid, line) {
       let width = string.length(line)
 
@@ -54,62 +54,68 @@ pub fn main() {
 }
 
 type FoldState =
-  Set(List(Coord))
+  #(Grid, Dict(Coord, Int), Int)
 
 fn find_trails(grid: Grid) -> Int {
+  let initial: FoldState = #(grid, dict.new(), 0)
+
   grid.starts
   |> list.reverse()
-  |> list.map(fn(start) {
-    find_from_head(grid, set.new(), [], start)
-    |> set.size()
+  |> list.fold(#(initial, 0), fn(state, start) {
+    let #(inner_state, total) = state
+    let #(grid, seen, sum) = find_from_head(inner_state, start)
+    let total = total + sum
+    #(#(grid, seen, 0), total)
   })
-  |> int.sum()
+  |> pair.second()
 }
 
 const dirs = [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
 
-fn find_from_head(
-  grid: Grid,
-  end_set: FoldState,
-  path: List(Coord),
-  coord: Coord,
-) -> FoldState {
-  let path = [coord, ..path]
+fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
+  let #(grid, seen, _) = state
+  case dict.get(seen, coord) {
+    Ok(count) -> #(grid, seen, count)
 
-  let curr_height =
-    grid.topo
-    |> dict.get(coord)
-    |> result.unwrap(-1)
+    Error(Nil) -> {
+      let curr_height =
+        grid.topo
+        |> dict.get(coord)
+        |> result.unwrap(-1)
 
-  case curr_height {
-    9 -> {
-      end_set |> set.insert(path)
-    }
-    curr_height -> {
-      dirs
-      |> list.map(fn(dir) {
-        let #(dx, dy) = dir
-        let #(x, y) = coord
-        #(x + dx, y + dy)
-      })
-      |> list.filter(fn(coord) {
-        let #(x, y) = coord
-        let height = dict.get(grid.topo, coord)
+      case curr_height {
+        9 -> #(grid, seen, 1)
+        curr_height -> {
+          let #(grid, seen, sum) =
+            dirs
+            |> list.map(fn(dir) {
+              let #(dx, dy) = dir
+              let #(x, y) = coord
+              #(x + dx, y + dy)
+            })
+            |> list.filter(fn(coord) {
+              let #(x, y) = coord
+              case dict.get(grid.topo, coord) {
+                Ok(h) -> {
+                  h - curr_height == 1
+                  && x >= 0
+                  && x < grid.width
+                  && y >= 0
+                  && y < grid.height
+                }
+                Error(Nil) -> False
+              }
+            })
+            |> list.fold(#(grid, seen, 0), fn(state, next) {
+              let #(grid, seen, sum) = find_from_head(state, next)
+              let #(_, _, total) = state
+              #(grid, seen, total + sum)
+            })
 
-        case height {
-          Ok(h) -> {
-            h - curr_height == 1
-            && x >= 0
-            && x < grid.width
-            && y >= 0
-            && y < grid.height
-          }
-          Error(Nil) -> False
+          let seen = dict.insert(seen, coord, sum)
+          #(grid, seen, sum)
         }
-      })
-      |> list.fold(end_set, fn(end_set, next) {
-        find_from_head(grid, end_set, path, next)
-      })
+      }
     }
   }
 }

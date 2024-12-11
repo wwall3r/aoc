@@ -3,6 +3,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/pair
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
@@ -23,8 +24,8 @@ pub fn main() {
 
   let grid =
     content
+    |> string.trim()
     |> string.split("\n")
-    |> list.filter(fn(str) { !string.is_empty(str) })
     |> list.fold(initial, fn(grid, line) {
       let width = string.length(line)
 
@@ -54,55 +55,73 @@ pub fn main() {
 }
 
 type FoldState =
-  Set(Coord)
+  #(Grid, Dict(Coord, Set(Coord)), Set(Coord))
 
 fn find_trails(grid: Grid) -> Int {
+  let initial = #(grid, dict.new(), set.new())
+
   grid.starts
   |> list.reverse()
-  |> list.map(fn(start) {
-    find_from_head(grid, set.new(), start)
-    |> set.size()
+  |> list.fold(#(initial, 0), fn(state, start) {
+    let #(next_state, sum) = state
+    let #(grid, seen, peak_set) = find_from_head(next_state, start)
+    #(#(grid, seen, set.new()), sum + set.size(peak_set))
   })
-  |> int.sum()
+  |> pair.second()
 }
 
 const dirs = [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
 
-fn find_from_head(grid: Grid, end_set: FoldState, coord: Coord) -> FoldState {
-  let curr_height =
-    grid.topo
-    |> dict.get(coord)
-    |> result.unwrap(-1)
+fn find_from_head(state: FoldState, coord: Coord) -> FoldState {
+  let #(grid, seen, _) = state
+  case dict.get(seen, coord) {
+    Ok(peak_set) -> #(grid, seen, peak_set)
 
-  case curr_height {
-    9 -> {
-      end_set |> set.insert(coord)
-    }
-    curr_height -> {
-      dirs
-      |> list.map(fn(dir) {
-        let #(dx, dy) = dir
-        let #(x, y) = coord
-        #(x + dx, y + dy)
-      })
-      |> list.filter(fn(coord) {
-        let #(x, y) = coord
-        let height = dict.get(grid.topo, coord)
+    Error(Nil) -> {
+      let curr_height =
+        grid.topo
+        |> dict.get(coord)
+        |> result.unwrap(-1)
 
-        case height {
-          Ok(h) -> {
-            h - curr_height == 1
-            && x >= 0
-            && x < grid.width
-            && y >= 0
-            && y < grid.height
-          }
-          Error(Nil) -> False
+      case curr_height {
+        9 -> {
+          let peak_set = set.from_list([coord])
+          #(grid, dict.insert(seen, coord, peak_set), peak_set)
         }
-      })
-      |> list.fold(end_set, fn(end_set, next) {
-        find_from_head(grid, end_set, next)
-      })
+        curr_height -> {
+          let #(grid, seen, new_set) =
+            dirs
+            |> list.map(fn(dir) {
+              let #(dx, dy) = dir
+              let #(x, y) = coord
+              #(x + dx, y + dy)
+            })
+            |> list.filter(fn(coord) {
+              let #(x, y) = coord
+              case dict.get(grid.topo, coord) {
+                Ok(h) -> {
+                  h - curr_height == 1
+                  && x >= 0
+                  && x < grid.width
+                  && y >= 0
+                  && y < grid.height
+                }
+                Error(Nil) -> False
+              }
+            })
+            |> list.fold(#(grid, seen, set.new()), fn(state, next) {
+              let #(grid, seen, new_set) = state
+              let #(grid, seen, next_set) =
+                find_from_head(#(grid, seen, set.new()), next)
+              let new_set = set.union(next_set, new_set)
+              let seen = dict.insert(seen, coord, new_set)
+              #(grid, seen, new_set)
+            })
+
+          let seen = dict.insert(seen, coord, new_set)
+          #(grid, seen, new_set)
+        }
+      }
     }
   }
 }
