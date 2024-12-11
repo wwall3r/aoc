@@ -28,7 +28,7 @@ pub fn main() {
 
   let seen: Seen = dict.new()
 
-  blink_stones(stones, seen, 0)
+  blink_stones(stones, seen, target)
   |> pair.second()
   |> io.debug()
 }
@@ -43,7 +43,7 @@ fn blink_stones(stones: List(Int), seen: Seen, depth: Int) -> #(Seen, Int) {
 
 fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
   case depth {
-    d if d == target -> #(seen, 1)
+    0 -> #(seen, 1)
     _ -> {
       let next_stones =
         seen
@@ -52,7 +52,7 @@ fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
 
       let seen = dict.insert(seen, stone, next_stones)
 
-      blink_stones(next_stones, seen, depth + 1)
+      blink_stones(next_stones, seen, depth - 1)
     }
   }
 }
