@@ -73,6 +73,9 @@ fn blink(stone: Int, seen: Seen, depth: Int) -> #(Seen, Int) {
             n -> blink(n * 2024, seen, depth - 1)
           }
 
+          // I think this could technically be improved by checking if n already
+          // exists as the value before making a "new set" (not sure if this call
+          // actually does that for you)
           let seen = dict.insert(seen, stone_and_depth, n)
 
           #(seen, n)
