@@ -120,7 +120,7 @@ fn count_corners(region: Region) -> Int {
         corner
         |> list.map(fn(coord) { set.contains(region.coords, coord) })
 
-      side1 != diagonal && side2 != diagonal || { !side1 && !side2 }
+      { side1 != diagonal && side2 != diagonal } || { !side1 && !side2 }
     })
   })
   |> list.flatten()
