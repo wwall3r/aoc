@@ -2,12 +2,10 @@ import argv
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
-import gleam/iterator
 import gleam/list
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
-import glearray.{type Array}
 import simplifile
 
 type Coord =
@@ -31,14 +29,14 @@ pub fn main() {
 
       #(x, y)
     })
-    |> glearray.from_list()
 
   let i =
-    search(bytes, 0, glearray.length(bytes) - 1)
+    search(bytes, 0, list.length(bytes) - 1)
     |> io.debug()
 
   bytes
-  |> glearray.get(i)
+  |> list.take(i + 1)
+  |> list.last()
   |> result.unwrap(#(-1, -1))
   |> io.debug()
 }
@@ -47,7 +45,7 @@ pub fn main() {
 // - could binary search over bytes until we find the first one in which the 
 //   exit is unreachable (which is ln(3450) / ln(2) or about 12 iterations)
 
-fn search(array: Array(Coord), left: Int, right: Int) -> Int {
+fn search(array: List(Coord), left: Int, right: Int) -> Int {
   case right < left {
     True -> left
     False -> {
@@ -55,9 +53,7 @@ fn search(array: Array(Coord), left: Int, right: Int) -> Int {
 
       let corrupted =
         array
-        |> glearray.iterate
-        |> iterator.take(mid + 1)
-        |> iterator.to_list()
+        |> list.take(mid + 1)
         |> set.from_list()
 
       let exit_length =
