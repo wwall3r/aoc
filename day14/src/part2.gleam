@@ -19,6 +19,16 @@ const width = 101
 
 const height = 103
 
+const threshold = 30
+
+// Changes:
+//
+// It stands to reason that if it is going to make a picture, we probably want
+// to find the largest contiguous region
+// 
+// The number of seconds to loop was a guess that I filtered down by starting
+// the above threshold for region size at 5
+
 pub fn main() {
   let assert [filename] = argv.load().arguments
   let assert Ok(content) = simplifile.read(from: filename)
@@ -42,27 +52,23 @@ pub fn main() {
       #(#(x, y), #(vx, vy))
     })
 
-  let #(_, min_t) =
-    yielder.range(1, 10_000)
-    |> yielder.fold(#(0, 0), fn(state, second) {
-      let #(min_distance, min_t) = state
+  yielder.range(1, 10_000)
+  |> yielder.each(fn(second) {
+    let new_robots =
+      robots
+      |> move(second)
+      |> set.from_list()
 
-      let distance =
-        robots
-        |> move(second)
-        |> list.unique()
-        |> get_total_distance()
+    let largest_region_size = get_largest_region_size(new_robots)
 
-      case distance < min_distance || min_t == 0 {
-        True -> #(distance, second)
-        False -> state
+    case largest_region_size > threshold {
+      True -> {
+        io.debug(second)
+        print_grid(new_robots)
       }
-    })
-
-  robots
-  |> move(min_t)
-  |> set.from_list()
-  |> print_grid()
+      False -> new_robots
+    }
+  })
 }
 
 fn move(robots: List(#(Coord, Velocity)), seconds: Int) {
@@ -75,12 +81,45 @@ fn move(robots: List(#(Coord, Velocity)), seconds: Int) {
   })
 }
 
-fn get_total_distance(coords: List(Coord)) -> Int {
-  list.fold(coords, 0, fn(distance, coord) {
-    let #(x, y) = coord
-    distance + { x * x } + { y * y }
-  })
+fn get_largest_region_size(coords: Set(Coord)) -> Int {
+  let #(_, max) =
+    coords
+    |> set.fold(#(set.new(), 0), fn(state, coord) {
+      let #(_, max) = state
+      let region = flood_fill(coords, coord, set.new())
+
+      case region |> set.size() {
+        n if n > max -> #(region, n)
+        _ -> state
+      }
+    })
+
+  max
 }
+
+fn flood_fill(coords: Set(Coord), coord: Coord, seen: Set(Coord)) -> Set(Coord) {
+  case set.contains(coords, coord) {
+    False -> seen
+    True -> {
+      case set.contains(seen, coord) {
+        True -> seen
+        False -> {
+          let seen = seen |> set.insert(coord)
+
+          dirs
+          |> list.fold(seen, fn(seen, dir) {
+            let #(x, y) = coord
+            let #(dx, dy) = dir
+            flood_fill(coords, #(x + dx, y + dy), seen)
+            |> set.union(seen)
+          })
+        }
+      }
+    }
+  }
+}
+
+const dirs = [#(0, 1), #(0, -1), #(1, 0), #(-1, 0)]
 
 fn parse_int(str: String) -> Int {
   let assert Ok(num) = int.parse(str)
