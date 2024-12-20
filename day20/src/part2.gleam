@@ -64,17 +64,9 @@ pub fn main() {
   let s = print_time_from(s)
 
   io.println("")
-  io.debug("part 1")
+  io.debug("#(part1, part2)")
 
-  cheat(array, 2)
-  |> io.debug()
-
-  let s = print_time_from(s)
-
-  io.println("")
-  io.debug("part 2")
-
-  cheat(array, 20)
+  cheat(array, 2, 20)
   |> io.debug()
 
   print_time_from(s)
@@ -127,23 +119,31 @@ fn get_scores(
   }
 }
 
-fn cheat(array: Array(#(Coord, Int)), max_distance: Int) -> Int {
+fn cheat(array: Array(#(Coord, Int)), part1: Int, part2: Int) -> #(Int, Int) {
   let len = glearray.length(array)
 
   yielder.range(0, len - 2)
-  |> yielder.fold(0, fn(cheats, i) {
+  |> yielder.fold(#(0, 0), fn(cheats, i) {
     yielder.range(i + 1, len - 1)
     |> yielder.fold(cheats, fn(cheats, j) {
+      let #(a, b) = cheats
       let #(#(x1, y1), s1) = get(array, i)
       let #(#(x2, y2), s2) = get(array, j)
 
       let distance = int.absolute_value(x2 - x1) + int.absolute_value(y2 - y1)
       let score = int.absolute_value(s2 - s1) - distance
 
-      case score >= threshold && distance <= max_distance {
-        True -> cheats + 1
-        False -> cheats
+      let a = case score >= threshold && distance <= part1 {
+        True -> a + 1
+        False -> a
       }
+
+      let b = case score >= threshold && distance <= part2 {
+        True -> b + 1
+        False -> b
+      }
+
+      #(a, b)
     })
   })
 }
