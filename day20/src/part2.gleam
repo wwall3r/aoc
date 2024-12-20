@@ -1,4 +1,6 @@
 import argv
+import birl
+import birl/duration
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
@@ -7,6 +9,8 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
+import gleam/yielder
+import glearray.{type Array}
 import simplifile
 
 pub type Grid {
@@ -46,34 +50,50 @@ pub fn main() {
         })
     })
 
+  let s = birl.now()
+
+  io.debug("bfs fill")
   let scores = get_scores(grid, dict.new(), [#(grid.start, 0)])
 
-  // slow
-  let combos =
+  let s = print_time_from(s)
+  io.println("")
+  io.debug("scores to array")
+
+  let array =
     scores
     |> dict.to_list()
-    |> list.combinations(2)
+    |> glearray.from_list()
 
+  let s = print_time_from(s)
+
+  io.println("")
   io.debug("part 1")
 
-  // also slow
-  cheat(combos, 2) |> print_cheats()
+  cheat(array, 2)
+  |> io.debug()
 
+  let s = print_time_from(s)
+
+  io.println("")
   io.debug("part 2")
 
-  // and still slow
-  cheat(combos, 20) |> print_cheats()
+  cheat(array, 20)
+  |> io.debug()
+
+  print_time_from(s)
 }
 
-fn print_cheats(cheats: Dict(Int, Int)) {
-  cheats
-  |> dict.fold(0, fn(sum, picoseconds, count) {
-    case picoseconds >= threshold {
-      True -> sum + count
-      False -> sum
-    }
-  })
-  |> io.debug()
+fn print_time_from(s) {
+  let e = birl.now()
+
+  e
+  |> birl.difference(s)
+  |> duration.blur_to(duration.MilliSecond)
+  |> int.to_string
+  |> string.append("ms")
+  |> io.println()
+
+  e
 }
 
 fn get_scores(
@@ -110,26 +130,32 @@ fn get_scores(
   }
 }
 
-fn cheat(combos: List(List(#(Coord, Int))), max_distance: Int) -> Dict(Int, Int) {
-  combos
-  |> list.fold(dict.new(), fn(cheats, item) {
-    let assert [#(#(x1, y1), s1), #(#(x2, y2), s2)] = item
+fn cheat(array: Array(#(Coord, Int)), max_distance: Int) -> Int {
+  let len = glearray.length(array)
 
-    let distance = int.absolute_value(x2 - x1) + int.absolute_value(y2 - y1)
-    let score = int.absolute_value(s2 - s1) - distance
+  yielder.range(0, len - 2)
+  |> yielder.fold(0, fn(cheats, i) {
+    yielder.range(i + 1, len - 1)
+    |> yielder.fold(cheats, fn(cheats, j) {
+      let #(#(x1, y1), s1) = get(array, i)
+      let #(#(x2, y2), s2) = get(array, j)
 
-    case score >= threshold && distance <= max_distance {
-      True ->
-        cheats
-        |> dict.upsert(score, fn(maybe_count) {
-          case maybe_count {
-            Some(count) -> count + 1
-            None -> 1
-          }
-        })
-      False -> cheats
-    }
+      let distance = int.absolute_value(x2 - x1) + int.absolute_value(y2 - y1)
+      let score = int.absolute_value(s2 - s1) - distance
+
+      case score >= threshold && distance <= max_distance {
+        True -> cheats + 1
+        False -> cheats
+      }
+    })
   })
+}
+
+fn get(array: Array(a), i: Int) -> a {
+  case array |> glearray.get(i) {
+    Ok(item) -> item
+    Error(Nil) -> panic as "could not get ith from array"
+  }
 }
 
 const dirs = [#(0, -1), #(0, 1), #(1, 0), #(-1, 0)]
