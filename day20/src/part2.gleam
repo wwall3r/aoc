@@ -5,7 +5,6 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string
@@ -33,21 +32,19 @@ pub fn main() {
     |> string.trim()
     |> string.split("\n")
     |> list.index_fold(initial_grid, fn(grid, line, y) {
-      let grid =
-        line
-        |> string.to_graphemes()
-        |> list.index_fold(grid, fn(grid, c, x) {
-          let coord = #(x, y)
+      line
+      |> string.to_graphemes()
+      |> list.index_fold(grid, fn(grid, c, x) {
+        let coord = #(x, y)
 
-          case c {
-            "." -> Grid(..grid, path: grid.path |> set.insert(coord))
-            "S" ->
-              Grid(..grid, path: grid.path |> set.insert(coord), start: coord)
-            "E" ->
-              Grid(..grid, path: grid.path |> set.insert(coord), end: coord)
-            _ -> grid
-          }
-        })
+        case c {
+          "." -> Grid(..grid, path: grid.path |> set.insert(coord))
+          "S" ->
+            Grid(..grid, path: grid.path |> set.insert(coord), start: coord)
+          "E" -> Grid(..grid, path: grid.path |> set.insert(coord), end: coord)
+          _ -> grid
+        }
+      })
     })
 
   let s = birl.now()
