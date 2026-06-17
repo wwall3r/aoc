@@ -65,6 +65,8 @@ run :: proc() -> (err: Error) {
         part1(&input)
     }
 
+    input = string(data)
+
     if part == 0 || part == 2 {
         part2(&input)
     }

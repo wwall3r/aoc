@@ -61,14 +61,12 @@ run :: proc() -> (err: Error) {
     defer delete(data)
 
     input := string(data)
-    // for line in strings.split_lines_iterator(&input) {
-    //     fmt.println(line)
-    // }
-
 
     if part == 0 || part == 1 {
         part1(&input)
     }
+
+    input = string(data)
 
     if part == 0 || part == 2 {
         part2(&input)
