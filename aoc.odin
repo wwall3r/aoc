@@ -51,7 +51,7 @@ run :: proc() -> (err: Error) {
 
     file := os.args[2]
 
-    log.debugf("part: %d file: %s", part, file)
+    log.debug("part:", part, "file:", file)
 
     data, read_err := os.read_entire_file(file, context.allocator)
     if read_err != nil {
@@ -60,44 +60,40 @@ run :: proc() -> (err: Error) {
     defer delete(data)
 
     input := string(data)
-    // for line in strings.split_lines_iterator(&input) {
-    //     fmt.println(line)
-    // }
-
 
     if part == 0 || part == 1 {
-        part1(input)
+        part1(&input)
     }
 
     if part == 0 || part == 2 {
-        part2(input)
+        part2(&input)
     }
 
     return nil
 }
 
-part1 :: proc(input: string) {
+part1 :: proc(input: ^string) {
     start := time.now()
     // parse
     runtime := time.since(start)
-    log.infof("Parsed in %d", runtime)
+    log.info("Parsed in", runtime)
 
     start = time.now()
     // solve
     runtime = time.since(start)
-    log.infof("Solved in %d", runtime)
+    log.info("Solved in", runtime)
 }
 
-part2 :: proc(input: string) {
+part2 :: proc(input: ^string) {
     start := time.now()
     // parse
     runtime := time.since(start)
-    log.infof("Parsed in %d", runtime)
+    log.info("Parsed in", runtime)
 
     start = time.now()
     // solve
     runtime = time.since(start)
-    log.infof("Solved in %d", runtime)
+    log.info("Solved in", runtime)
 
 }
 
