@@ -1,28 +1,50 @@
 package main
 
+import "core:fmt"
 import "core:log"
+import "core:mem"
 import "core:strings"
 import "core:strconv"
 import "core:os"
 import "core:time"
 
-Error :: enum {
-    ArgsError,
-    FileNotFoundError,
-    PartArgError,
+Error :: enum u8 {
+    ArgsError = 1,
+    FileNotFoundError = 2,
+    PartArgError = 3,
 }
 
 main :: proc() {
+    exit_code := 0
+    defer os.exit(exit_code)
+
+    when ODIN_DEBUG {
+        track: mem.Tracking_Allocator
+        mem.tracking_allocator_init(&track, context.allocator)
+        context.allocator = mem.tracking_allocator(&track)
+
+        defer {
+            if len(track.allocation_map) > 0 {
+                fmt.eprintfln("=== %v allocations not freed: ===", len(track.allocation_map))
+                for _, entry in track.allocation_map {
+                    fmt.eprintfln("- %v bytes @ %v", entry.size, entry.location)
+                }
+            }
+
+            mem.tracking_allocator_destroy(&track)
+        }
+    }
+
     logger := log.create_console_logger()
+    defer log.destroy_console_logger(logger)
     context.logger = logger
 
     err := run()
 
-    exit_code := 0 if err == nil else int(err) + 1
+    exit_code = 0 if err == nil else int(err)
     exit_message: string = ""
 
     switch err {
-    case nil:
     case .ArgsError:
         exit_message = "must provide part and input, e.g.: odin run . -- 1 input"
     case .PartArgError:
@@ -31,13 +53,11 @@ main :: proc() {
         exit_message = "Failed to load file"
     }
 
-    if exit_message != "" {
+    if err != nil {
         log.errorf("%v: %s", err, exit_message)
     }
-
-    log.destroy_console_logger(logger)
-    os.exit(exit_code)
 }
+
 
 run :: proc() -> (err: Error) {
     if len(os.args) < 3 {
