@@ -4,6 +4,7 @@ import "core:log"
 import "core:strings"
 import "core:strconv"
 import "core:os"
+import "core:slice"
 import "core:time"
 
 Error :: enum {
@@ -101,14 +102,32 @@ part1 :: proc(input: ^string) {
 
 part2 :: proc(input: ^string) {
     start := time.now()
-    // parse
+
+    elves: [dynamic]int
+    max_calories := 0
+    calories := 0
+
+    for line in strings.split_lines_iterator(input) {
+        food, ok := strconv.parse_int(line)
+        if ok {
+            calories += food
+        } else {
+            append(&elves, calories)
+            calories = 0
+        }
+    }
+
+    append(&elves, calories)
+
+    slice.reverse_sort(elves[:])
+
+    sum := 0
+    for s in 0..=2 {
+        sum += elves[s]
+    }
+
     runtime := time.since(start)
-    log.info("Parsed in", runtime)
-
-    start = time.now()
-    // solve
-    runtime = time.since(start)
+    log.info(sum)
     log.info("Solved in", runtime)
-
 }
 
