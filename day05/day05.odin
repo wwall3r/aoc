@@ -7,12 +7,12 @@ import "core:strings"
 import "core:strconv"
 import "core:os"
 import "core:time"
-import "core:unicode/utf8"
 
 Error :: enum u8 {
     ArgsError = 1,
     FileNotFoundError = 2,
     PartArgError = 3,
+    ParseError = 4,
 }
 
 main :: proc() {
@@ -41,182 +41,113 @@ main :: proc() {
     context.logger = logger
 
     err := run()
-
     exit_code = 0 if err == nil else int(err)
-    exit_message: string = ""
-
-    switch err {
-    case .ArgsError:
-        exit_message = "must provide part and input, e.g.: odin run . -- 1 input"
-    case .PartArgError:
-        exit_message = "Part should be either 1, 2, or 0 for both"
-    case .FileNotFoundError:
-        exit_message = "Failed to load file"
-    }
 
     if err != nil {
-        log.errorf("%v: %s", err, exit_message)
+        exit_messages := [Error]string {
+            .ArgsError         = "must provide part and input, e.g.: odin run . -- 1 input",
+            .PartArgError      = "Part should be either 1, 2, or 0 for both",
+            .FileNotFoundError = "Failed to load file",
+            .ParseError        = "Failed to parse input",
+        }
+        log.errorf("%v: %s", err, exit_messages[err])
     }
 }
 
-
 run :: proc() -> (err: Error) {
-    if len(os.args) < 3 {
-        return Error.ArgsError
-    }
+    if len(os.args) < 3 do return .ArgsError
 
-    part, ok := strconv.parse_int(os.args[1], 10)
-    if !ok || part < 0 || part > 2 {
-        return Error.PartArgError
-    }
+    part := strconv.parse_int(os.args[1], 10) or_else -1
+    if part < 0 || part > 2 do return .PartArgError
 
     file := os.args[2]
-
     log.debug("part:", part, "file:", file)
 
     data, read_err := os.read_entire_file(file, context.allocator)
-    if read_err != nil {
-        return Error.FileNotFoundError
-    }
+    if read_err != nil do return .FileNotFoundError
     defer delete(data)
 
     input := string(data)
 
-    if part == 0 || part == 1 {
-        part1(&input)
-    }
-
-    input = string(data)
-
-    if part == 0 || part == 2 {
-        part2(&input)
-    }
+    if part == 0 || part == 1 do solve(input, false) or_return
+    if part == 0 || part == 2 do solve(input, true) or_return
 
     return nil
 }
 
-part1 :: proc(input: ^string) {
+parse_int :: proc(s: string) -> (n: int, err: Error) {
+    parsed, ok := strconv.parse_int(s, 10)
+    if !ok do return 0, .ParseError
+    return parsed, nil
+}
+
+solve :: proc(input: string, simultaneous: bool) -> (err: Error) {
     start := time.now()
-    stacks, moves := parse(input)
+    stacks, moves := parse(input) or_return
     defer {
         for stack in stacks do delete(stack)
         delete(stacks)
     }
-
-    runtime := time.since(start)
-    log.info("Parsed in", runtime)
+    log.info("Parsed in", time.since(start))
 
     start = time.now()
-
-
     for move_str in strings.split_lines_iterator(&moves) {
-        move_parts := strings.split(move_str, " ")
-        defer delete(move_parts)
+        move_parts := strings.split(move_str, " ", context.temp_allocator)
+        if len(move_parts) < 6 do continue
 
-        num_to_move, _ := strconv.parse_int(move_parts[1], 10)
-        source, _ := strconv.parse_int(move_parts[3], 10)
-        dest, _ := strconv.parse_int(move_parts[5], 10)
+        num := parse_int(move_parts[1]) or_return
+        src := parse_int(move_parts[3]) or_return
+        dst := parse_int(move_parts[5]) or_return
 
-        for i in 0..<num_to_move {
-            move(&stacks, source - 1, dest -1)
+        if simultaneous {
+            move_many(&stacks, num, src - 1, dst - 1)
+        } else {
+            for _ in 0 ..< num do move_one(&stacks, src - 1, dst - 1)
         }
     }
+    free_all(context.temp_allocator)
 
     top_items := strings.builder_make()
     defer strings.builder_destroy(&top_items)
-
-    for stack in stacks {
-        strings.write_rune(&top_items, stack[len(stack) - 1])
-    }
-
+    for stack in stacks do strings.write_byte(&top_items, stack[len(stack) - 1])
     log.info(strings.to_string(top_items))
 
-    runtime = time.since(start)
-    log.info("Solved in", runtime)
+    log.info("Solved in", time.since(start))
+    return nil
 }
 
-parse :: proc(input: ^string) -> ([dynamic][dynamic]rune, string) {
-    parts := strings.split(input^, "\n\n")
-    defer delete(parts)
+parse :: proc(input: string) -> (stacks: [dynamic][dynamic]u8, moves: string, err: Error) {
+    parts := strings.split(input, "\n\n", context.temp_allocator)
+    if len(parts) < 2 do return nil, "", .ParseError
 
-    positions := strings.split(parts[0], "\n")
-    defer delete(positions)
-
+    positions := strings.split(parts[0], "\n", context.temp_allocator)
     p := len(positions) - 1
 
-    stacks := [dynamic][dynamic]rune{}
+    // Bottom-most row holds the stack labels; each non-space column is a stack.
+    // ASCII-only input, so byte indexing is safe.
+    for c, i in positions[p] {
+        if c == ' ' do continue
 
-    for r, i in positions[p] {
-        // technically this won't handle multi-rune positions, but our input 
-        // only contains 9 so whatever
-        if !strings.is_space(r) {
-            stack := [dynamic]rune{}
-
-            for j := p - 1; j >= 0; j -= 1 {
-                runes := utf8.string_to_runes(positions[j])
-                defer delete(runes)
-
-                if !strings.is_space(runes[i]) {
-                    append(&stack, runes[i])
-                }
+        stack := [dynamic]u8{}
+        for j := p - 1; j >= 0; j -= 1 {
+            row := positions[j]
+            if i < len(row) && row[i] != ' ' {
+                append(&stack, row[i])
             }
-
-            append(&stacks, stack)
         }
+        append(&stacks, stack)
     }
 
-    fmt.println("stacks:")
-    for stack in stacks {
-        fmt.println(stack)
-    }
-
-    return stacks, parts[1]
+    return stacks, parts[1], nil
 }
 
-move :: proc(stacks : ^[dynamic][dynamic]rune, source, dest: int) {
-    item := pop(&stacks[source])
-    append(&stacks[dest], item)
+move_one :: proc(stacks: ^[dynamic][dynamic]u8, src, dst: int) {
+    append(&stacks[dst], pop(&stacks[src]))
 }
 
-part2 :: proc(input: ^string) {
-    start := time.now()
-    stacks, moves := parse(input)
-    defer {
-        for stack in stacks do delete(stack)
-        delete(stacks)
-    }
-    runtime := time.since(start)
-    log.info("Parsed in", runtime)
-
-    start = time.now()
-    for move_str in strings.split_lines_iterator(&moves) {
-        move_parts := strings.split(move_str, " ")
-        defer delete(move_parts)
-
-        num_to_move, _ := strconv.parse_int(move_parts[1], 10)
-        source, _ := strconv.parse_int(move_parts[3], 10)
-        dest, _ := strconv.parse_int(move_parts[5], 10)
-
-        move2(&stacks, num_to_move, source - 1, dest -1)
-    }
-
-    top_items := strings.builder_make()
-    defer strings.builder_destroy(&top_items)
-
-    for stack in stacks {
-        strings.write_rune(&top_items, stack[len(stack) - 1])
-    }
-
-    log.info(strings.to_string(top_items))
-
-    runtime = time.since(start)
-    log.info("Solved in", runtime)
-}
-
-move2 :: proc(stacks : ^[dynamic][dynamic]rune, num, source, dest : int) {
-    source_len := len(stacks[source])
-    num := min(num, source_len)
-    new_len := source_len - num
-    append(&stacks[dest], ..stacks[source][new_len:])
-    resize(&stacks[source], new_len)
+move_many :: proc(stacks: ^[dynamic][dynamic]u8, num, src, dst: int) {
+    n := min(num, len(stacks[src]))
+    new_len := len(stacks[src]) - n
+    append(&stacks[dst], ..stacks[src][new_len:])
+    resize(&stacks[src], new_len)
 }
