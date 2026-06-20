@@ -157,10 +157,6 @@ part2 :: proc(input: ^string) {
     log.info("Solved in", runtime)
 }
 
-interval_equals :: proc(a, b : Interval) -> bool {
-    return a[0] == b[0] && a[1] == b[1]
-}
-
 interval_contains :: proc(a, b : Interval) -> bool {
     return a[0] <= b[0] && a[1] >= b[1]
 }
