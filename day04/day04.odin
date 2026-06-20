@@ -110,6 +110,7 @@ part1 :: proc(input: ^string) {
 
     for line in strings.split_lines_iterator(input) {
         parts := strings.split_multi(line, splits[:])
+        defer delete(parts)
 
         for part, i in parts {
             intervals[i / 2][i %% 2], _ = strconv.parse_int(part, 10)
@@ -140,6 +141,7 @@ part2 :: proc(input: ^string) {
 
     for line in strings.split_lines_iterator(input) {
         parts := strings.split_multi(line, splits[:])
+        defer delete(parts)
 
         for part, i in parts {
             intervals[i / 2][i %% 2], _ = strconv.parse_int(part, 10)
