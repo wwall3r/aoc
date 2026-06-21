@@ -14,6 +14,7 @@ Error :: enum u8 {
     PartArgError = 3,
 }
 
+
 main :: proc() {
     exit_code := 0
     defer os.exit(exit_code)
@@ -42,31 +43,27 @@ main :: proc() {
     err := run()
 
     exit_code = 0 if err == nil else int(err)
-    exit_message: string = ""
 
-    switch err {
-    case .ArgsError:
-        exit_message = "must provide part and input, e.g.: odin run . -- 1 input"
-    case .PartArgError:
-        exit_message = "Part should be either 1, 2, or 0 for both"
-    case .FileNotFoundError:
-        exit_message = "Failed to load file"
+    messages := [Error]string{
+        .ArgsError = "must provide part and input, e.g.: odin run . -- 1 input",
+        .PartArgError = "Part should be either 1, 2, or 0 for both",
+        .FileNotFoundError = "Failed to load file",
     }
 
     if err != nil {
-        log.errorf("%v: %s", err, exit_message)
+        log.errorf("%v: %s", err, messages[err])
     }
 }
 
 
 run :: proc() -> (err: Error) {
     if len(os.args) < 3 {
-        return Error.ArgsError
+        return .ArgsError
     }
 
     part, ok := strconv.parse_int(os.args[1], 10)
     if !ok || part < 0 || part > 2 {
-        return Error.PartArgError
+        return .PartArgError
     }
 
     file := os.args[2]
@@ -75,26 +72,24 @@ run :: proc() -> (err: Error) {
 
     data, read_err := os.read_entire_file(file, context.allocator)
     if read_err != nil {
-        return Error.FileNotFoundError
+        return .FileNotFoundError
     }
     defer delete(data)
 
     input := string(data)
 
     if part == 0 || part == 1 {
-        part1(&input)
+        part1(input)
     }
 
-    input = string(data)
-
     if part == 0 || part == 2 {
-        part2(&input)
+        part2(input)
     }
 
     return nil
 }
 
-part1 :: proc(input: ^string) {
+part1 :: proc(input: string) {
     start := time.now()
     // parse
     runtime := time.since(start)
@@ -106,7 +101,7 @@ part1 :: proc(input: ^string) {
     log.info("Solved in", runtime)
 }
 
-part2 :: proc(input: ^string) {
+part2 :: proc(input: string) {
     start := time.now()
     // parse
     runtime := time.since(start)
@@ -116,6 +111,5 @@ part2 :: proc(input: ^string) {
     // solve
     runtime = time.since(start)
     log.info("Solved in", runtime)
-
 }
 
